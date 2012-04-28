@@ -1,0 +1,170 @@
+<!--
+To change this template, choose Tools | Templates
+and open the template in the editor.
+-->
+<!DOCTYPE html>
+<html>
+    <head>
+        <title></title>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <link href="smoothness/jquery-ui-1.8.16.custom.css" rel="stylesheet" type="text/css" >
+        <script type="text/javascript" src="jquery.js"></script>
+        <script type="text/javascript" src="jquery-ui.min.js"></script>
+        <script type="text/javascript" src="settings.js"></script>
+        <style>
+            body {
+                font-size: 12px;
+            }
+            #farmList {
+                margin: 10px;
+            }
+            
+            .pointer {
+                cursor: pointer;
+            }
+            .farmInfo {
+                margin: 5px;
+            }
+            
+            .padding {
+                padding: 5px 10px;
+            }
+            
+            .margin {
+                margin: 10px;
+            }
+            
+            .building {
+                width: 200px;
+                margin: 10px;
+            }
+            
+            .left {
+                float: left;
+            }
+            .right {
+                float: right;
+            }
+            .title {
+                cursor: pointer;
+            }
+            
+            .queue {
+                float: left;
+                margin: 15px;
+                min-width: 300px;
+            }
+            
+            .availableToQueue {
+                min-width: 300px;
+                margin: 15px;
+                float: left;
+            }
+            [draggable] {
+              -moz-user-select: none;
+              -khtml-user-select: none;
+              -webkit-user-select: none;
+              user-select: none;
+            }
+            
+            .over {
+                background-color: #e7e7e7;
+                min-height: 200px;
+            }
+            
+            .hint {
+                font-size: 10px;
+                text-align: right;
+                color: #6a6a6a;
+                margin: 5px;
+            }
+        </style>
+    </head>
+    <body>
+        <script type="text/javascript">
+            var details = chrome.app.getDetails();
+            jQuery(document).ready(function($) {
+                $("#version").text(details.version);
+                $("#tabs").tabs();
+                
+                $("#toggleFarmsAdd").button({
+                    icons: {
+                        primary: "ui-icon-plusthick"
+                    }
+                }).click(function() {
+                    $("#addFarmForm").slideToggle();
+                });
+                
+                $("h4.title").live("click", function() {
+                    $(this).next().toggle();
+                });
+                
+                
+            });
+        </script>
+        <div>
+            <div class="hint">
+                version: <span id="version"></span>
+            </div>
+            <div id="newTownForm" class="ui-helper-hidden">
+                Town id: <br/>
+                <input type="text" name="townid" id="form-town-id"/><br/>
+                Town title: <br/>
+                <input type="text" name="towntitle" id="form-town-title"/>
+            </div>
+            <div style="text-align: right;" class="margin">
+                <select id="towns">
+                    <option value="0">Please select Town</option>
+                </select>
+                <button id="newTown">Add new Town</button>
+            </div>
+            <div id="tabs">
+                <ul>
+                    <li><a href="#tabs-1">Farms</a></li>
+                    <!-- <li><a href="#tabs-2">Building</a></li> -->
+                </ul>
+                <div id="tabs-1">
+                    <button id="toggleFarmsAdd">Add farm</button>
+                    <div id="addFarmForm" class="ui-helper-hidden">
+                        Add farm:<br/>
+                        <div>
+                            <input type="text" value="" id="addFarmId"/>
+                            <button id="addFarm">Add Farm</button>
+                        </div>
+                    </div>
+                    <div id="farmList"></div>
+                </div>
+                <!--
+                    <h3>Under reconstruction</h3>
+                    <h3>Building manager</h3>
+                    <h4 class="title ui-widget-header ui-corner-all padding">In current build</h4>
+                    <div id="current"></div>
+                    <div style="clear: both;"></div>
+                    <div>
+                        <div class="queue" id="queue">
+                            <h4 class="title ui-widget-header ui-corner-all padding">Queue buildings</h4>
+                            <div>
+                                <div class="controll">
+                                    <button id="reloadQueue">Refresh</button>
+                                    <button id="saveQueue">Save</button>
+                                    <button id="clearQueue">Clear</button>
+                                </div>
+                                <div id="queueBuildings"></div>
+                            </div>
+                            <div style="clear: both;"></div>
+                        </div>
+                        <div class="availableToQueue">
+                            <h4 class="title ui-widget-header ui-corner-all padding">Available buildings</h4>
+                            <div class="ui-helper-hidden">
+                                <button id="buildingsLoad">Reload buildings</button>
+                                <div id="availableBuildings"></div>
+                                <div style="clear: both;"></div>                        
+                            </div>
+                        </div>
+                        <div style="clear: both;"></div>
+                    </div>
+                </div>-->
+            </div>
+        </div>
+    </body>
+</html>

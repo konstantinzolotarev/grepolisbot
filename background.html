@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title></title>
+        <script type="text/javascript" src="jquery.js"></script>
+        <script type="text/javascript">
+            jQuery.noConflict();
+            var data = {
+                "PHPSESSID": "",
+                "cid": "",
+                "sid": "",
+                "csrfToken": "",
+                "url": "http://ru4.grepolis.com",
+                "action": "farm"
+            };
+            
+            /**
+             * Class PluginStorage
+             * Helper to store current town & build state
+             *
+             * @param {Object} opts Settings for Storage
+             * @param {Object} opts.towns all info related to towns empty Object 
+             *                  by default
+             * @param {Object} opts.selectedTown Set current town
+             * @constructor
+             */
+            function PluginStorage(opts) {
+                this.opts = opts;
+                this.towns = {};
+                this.selectedTown = null;
+                this.farming = false;
+            }
+            
+            /**
+             * Load prev state from LocalStorage
+             */
+            PluginStorage.prototype.load = function() {
+                var towns = localStorage.getItem("towns");
+                if (towns != null && towns != "") {
+		    console.log(towns);
+                    var towns = JSON.parse(towns);
+                    (function(plugin) {
+                        jQuery.each(towns, function(townId, data) {
+                            plugin.towns[townId] = new Town(data);
+                        });
+                    })(this);
+                }
+            }
+            
+            /**
+            * Save current stage
+            */
+            PluginStorage.prototype.save = function() {
+                localStorage.setItem("towns", JSON.stringify(this.towns));
+            }
+            
+            
+            /**
+             * Load Town list
+             * 
+             * @return {Array}
+             */
+            PluginStorage.prototype.getTowns = function() {
+                return this.towns;
+            }
+            
+            /**
+             * Get Town by id
+             * 
+             * @param {number} id Town id
+             * @return {Town}
+             */
+            PluginStorage.prototype.getTown = function(id) {
+                if (this.towns[id]) {
+                    if (this.towns[id] instanceof Town) {
+                        return this.towns[id];
+                    } else {
+                        return new Town(this.towns[id]);
+                    }
+                }
+                return false;
+            }
+            
+            /**
+             * Add new town to PluginStorage
+             * 
+             * @param {Object} town info
+             * @param {number} town.id 
+             * @return {boolean}
+             */
+            PluginStorage.prototype.addTown = function(town) {
+                if(!town.id) {
+                    return false;
+                } 
+                if(!town.title) {
+                    town.title = "";
+                }
+                town.farms = new Array();
+                town.buildQueue = new Array();
+                if (this.towns[town.id]) {
+                    return false;
+                }
+                if (!(town instanceof Town)) {
+                    town = new Town(town);
+                }
+                this.towns[town.id] = town;
+                this.save();
+                return true;
+            }
+            
+            /**
+             * Remove Town from current plugin state
+             * 
+             * @param {number} town id
+             * @param {boolean} Should new state be stored
+             */
+            PluginStorage.prototype.removeTown = function(id, save) {
+                if (this.towns[id]) {
+                    delete this.towns[id];
+                }
+                if (save) {
+                    this.save();
+                }
+            }
+            
+            /**
+             * Update stored Town
+             * 
+             * @param {Town} town Town to update
+             */
+            PluginStorage.prototype.updateTown = function(town) {
+                if (!(town instanceof Town)) {
+                    town = new Town(town);
+                }
+                this.towns[town.id] = town;
+                this.save();
+            }
+            
+            /**
+             * Set main town
+             */
+            PluginStorage.prototype.mainTown = function(townId) {
+                townId = parseInt(townId);
+                var town = this.getTown(townId);
+                if (!town) {
+                    town = new Town({
+                        id: townId,
+                        title: "Main Town"
+                    });
+                    this.addTown(town);
+                }
+                this.selectedTown = town.id;
+            }
+            
+            /**
+             * Select new Town as selected
+             * 
+             * @param {number} town id
+             * @return {Town}
+             */
+            PluginStorage.prototype.selectTown = function(townId) {
+                var town = this.getTown(townId);
+                if (!town) {
+                    return false;
+                }
+                this.selectedTown = town.id;
+                return town;
+            }
+            
+            /**
+             * Start farming into all towns
+             */
+            PluginStorage.prototype.startFarming = function() {
+                jQuery.each(this.getTowns(), function(id, town) {
+                    town.farm();
+                });
+                this.farming = true;
+            }
+            
+            /**
+             * Start farming into all towns
+             */
+            PluginStorage.prototype.stopFarming = function() {
+                jQuery.each(this.getTowns(), function(id, town) {
+                    town.resetFarming();
+                });
+                this.farming = false;
+            }
+            
+            /**
+             * @return {boolean} is farming started
+             */
+            PluginStorage.prototype.isFarming = function() {
+                return this.farming;
+            }
+            
+            /**
+             * Class Town
+             * 
+             * @param {Object} town settings
+             * @param {Array} opts.farms farms related to Town
+             * @param {Array} opts.buildQueue
+             * @param {String} opts.title Town title
+             * @constructor
+             */
+            function Town(opts) {
+                if (opts.id) {
+                    this.id = opts.id;
+                }
+                if (opts.buildQueue) {
+                    this.buildQueue = opts.buildQueue;
+                } else {
+                    this.buildQueue = new Array();
+                }
+                this.farms = opts.farms;
+                this.title = opts.title;
+                this.farmTimeout    = false; //Create new timeout for farming
+            }
+            
+            /**
+             * Get farms related to town
+             * @return {Array}
+             */
+            Town.prototype.getFarms = function() {
+                return this.farms;
+            }
+            
+            /**
+             * Get farms related to town as list
+             * @return {String} farm list
+             */
+            Town.prototype.getFarmsAsString = function() {
+                return this.farms.join(",");
+            }
+            
+            /**
+             * Add new farm to town
+             * 
+             * @param {number} farmId farm id
+             * @return {boolean} is farm was added
+             */
+            Town.prototype.addFarm = function(farmId) {
+                var found = false;
+                for(var i = 0; i < this.farms.length; i++) {
+                    if (this.farms[i] == farmId) {
+                        found = true;
+                    }
+                }
+                if (!found) {
+                    this.farms.push(farmId);
+                }
+                return !found;
+            }
+            
+            /**
+             * Remove farm from this town
+             * 
+             * @param {number} farmId
+             * @return {boolean} is farm was removed from town
+             */
+            Town.prototype.removeFarm = function(farmId) {
+                var found = false;
+                var item = 0;
+                for(var i = 0; i < this.farms.length; i++) {
+                    if (this.farms[i] == farmId) {
+                        found = true;
+                        item = i;
+                    }
+                }
+                if (found) {
+                    this.farms.splice(item, 1);
+                }
+                return found;
+            }
+            
+            /**
+             * Init farming
+             */
+            Town.prototype.farm = function() {
+                if (this.farms.length < 1) {
+                    console.log("Town "+this.id+" has no stored farms");
+                    return;
+                }
+                this.farmTimeout = false;
+                (function(town) {
+                    callServer({action: "farm", farms: town.getFarmsAsString(), townId: town.id}, function(resp) {
+                        town.sheduleFarming();
+                    }, function() {
+                        //restart timeout on server error.
+                        town.sheduleFarming();
+                    });
+                })(this);
+            }
+            
+            /**
+            * Stop farming in this town
+            */
+            Town.prototype.resetFarming = function() {
+                if (this.farmTimeout) {
+                    clearTimeout(this.farmTimeout);
+                    sendNotification('You stoped farming in Grepolis !');
+                }
+            }
+            
+            /**
+             * @return {boolean} is town farming
+             */
+            Town.prototype.isFarming = function() {
+                return this.farmTimeout;
+            }
+            
+            /**
+             * Create new timeout for this town to farm
+             */
+            Town.prototype.sheduleFarming = function() {
+                (function(town) {
+                    town.timeoutID = setTimeout(function() { town.farm() }, getRandTimeOut());
+                })(this);
+            }
+            
+            /*
+             * parse string and create array from it
+             */
+            function parseString(string) {
+                if (string == "") {
+                    return new Array();
+                }
+                return string.split(",");
+            }
+            
+            function getRandomInt(min, max)
+            {
+                return Math.floor(Math.random() * (max - min + 1)) + min;
+            }
+
+
+            function getRandTimeOut() {
+                return 300000 + getRandomInt(0, 60000);
+            }
+            
+            function callServer(newData, callback, errorCallback, completeCallback) {
+                if(data.PHPSESSID == "") {
+                    sendErrorNotification("You have no Session Identifier !");
+                    return;
+                }
+                if (typeof callback == "undefined") {
+                    callback = function() {}
+                }
+                if (typeof errorCallback == "undefined") {
+                    errorCallback = function() {}
+                }
+                if (typeof completeCallback == "undefined") {
+                    completeCallback = function() {}
+                }
+                if (typeof newData == "object") {
+                    var sdata = jQuery.extend({}, data, newData);
+                } else {
+                    var sdata = data;
+                }
+                if (!sdata.townId) {
+                    alert("No town Id passed!");
+                    return;
+                }
+                jQuery.ajax({
+                    type: 'GET',
+                    url: "http://zolotarev.personal.kg.sibers.com/grepolis/grepolis.php",
+                    data: sdata,
+                    success: callback,
+                    error: errorCallback,
+                    complete: completeCallback
+                });
+            }
+            
+            function sendErrorNotification(message) {
+                var notification = webkitNotifications.createNotification(
+                    'images/error.png',  // icon url - can be relative
+                    'Grepolis Farmin Bot!',  // notification title
+                    message  // notification body text
+                );
+                notification.show();
+            }
+            
+            function sendNotification(message) {
+                var notification = webkitNotifications.createNotification(
+                'images/icon.png',  // icon url - can be relative
+                'Grepolis Farmin Bot!',  // notification title
+                message  // notification body text
+            );
+                (function(notification) {
+                    var timeOut = null;
+                    notification.ondisplay = function() {
+                        timeOut = setTimeout(function() { notification.cancel(); }, 10000);
+                    };
+                    notification.onclose = function() {
+                        if (timeOut != null) {
+                            clearTimeout(timeOut);
+                        }
+                    };
+                    notification.show();
+                })(notification);
+            }
+            
+            function getGameValue(source, keyRegexp) {
+                var token = source.match(keyRegexp); ///Game.csrfToken = \'[a-z0-9]*\';/i
+                if (token.length < 1) {
+                    return null;
+                }
+                var tPart = token[0].split("=");
+                if (tPart.length != 2) {
+                    return null;
+                }
+                var token = tPart[1].split("'");
+                if (token.length != 3) {
+                    return null;
+                }
+                return token[1];
+            }
+            
+            /**
+             * This function init farming into grepolis
+             */
+            function startFarming (info, tab) {
+                chrome.tabs.getSelected(null, function(tab) {
+                    chrome.tabs.sendRequest(tab.id, {action : 'getSource'}, function(source) {
+                        if (tab.url.search(/grepolis.com\/game\/index/i) < 0 ) {
+                            return;
+                        }
+                        data.csrfToken = getGameValue(source, /Game.csrfToken = \'[a-z0-9]*\';/i);
+                        var townId = getGameValue(source, /Game.townId = \'[a-z0-9]*\';/i);
+                        plugin.mainTown(townId); //Store main and default town
+                        
+                        var coockieUrl = tab.url.match(/http:\/\/ru.{1,2}\.grepolis\.com/i);
+                        console.log(coockieUrl);
+                        if (coockieUrl.length < 1) {
+                            sendErrorNotification("Couldn't get game URL !");
+                            return;
+                        }
+                        data.url = coockieUrl[0];
+                        chrome.cookies.getAll({
+                            url: data.url
+                        }, function(coockie) {
+                            for(var i = 0; i < coockie.length; i++) {
+                                if (coockie[i].name == "PHPSESSID") {
+                                    data.PHPSESSID = coockie[i].value;
+                                }
+
+                                if (coockie[i].name == "cid") {
+                                    data.cid = coockie[i].value;
+                                }
+
+                                if (coockie[i].name == "sid") {
+                                    data.sid = coockie[i].value;
+                                }
+                            }
+                            plugin.startFarming();
+                            //here I should start farming
+                        });
+                    });
+                    return;
+                });
+            }
+            
+            chrome.contextMenus.create(
+            {
+                title: "Start farming", 
+                contexts:["link"], 
+                onclick: startFarming
+            });
+            
+            /**
+            * 
+            **/
+            var plugin = new PluginStorage({});
+            plugin.load();
+            
+        </script>
+    </head>
+    <body>
+
+    </body>
+</html>

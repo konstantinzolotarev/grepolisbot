@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title></title>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <link href="smoothness/jquery-ui-1.8.16.custom.css" rel="stylesheet" type="text/css" >
+        <style>
+            body {
+              min-width: 357px;
+              max-height: 300px;
+              overflow-x: hidden;
+              font-size: 11px;
+            }
+            
+            .hint {
+                font-size: 10px;
+                text-align: right;
+                color: #6a6a6a;
+            }
+            
+        </style>
+        <script type="text/javascript" src="jquery.js"></script>
+        <script type="text/javascript" src="jquery-ui.min.js"></script>
+    </head>
+    <body>
+        <div class="ui-widget">
+            <div id="info">
+                <span style="font-weight: bold;">Farming status:</span>
+                <span id="fstatus_run" class="ui-helper-hidden">Farming&nbsp;<img src="images/ok.png" alt="Farming"/></span>
+                <span id="fstatus_stop" class="ui-helper-hidden">Stopped&nbsp;<img src="images/stop.png" alt="Stopped"/></span>
+            </div>
+            <div style="margin: 10px;">
+                <button id="stopFarming" class="ui-helper-hidden">Stop Farming!</button>
+                <button id="settings" class="ui-helper-hidden">Settings</button>
+            </div>
+            <div class="hint">
+                version: <span id="version"></span>
+            </div>
+        </div>
+        <script type="text/javascript">
+            var bg = chrome.extension.getBackgroundPage();
+            var details = chrome.app.getDetails();
+            jQuery(document).ready(function($) {
+                $("#version").text(details.version);
+                
+                function farmingOk() {
+                    $("#fstatus_run").show();
+                    $("#fstatus_stop").hide();
+                    $("#stopFarming").show();
+                }
+                
+                function farmingStop() {
+                    $("#fstatus_run").hide();
+                    $("#fstatus_stop").show();
+                    $("#stopFarming").hide();
+                }
+                if (bg.plugin.isFarming()) {
+                    farmingOk();
+                } else {
+                    farmingStop();
+                }
+                $("#stopFarming").button({
+                    icons: {
+                        primary: "ui-icon-power"
+                    }
+                }).click(function() {
+                    bg.plugin.stopFarming();
+                    farmingStop();
+                }); 
+                $("#settings").button({
+                    icons: {
+                        primary: "ui-icon-gear"
+                    }
+                }).click(function() {
+                    chrome.tabs.create({'url': chrome.extension.getURL('settings.html')}, function(tab) {
+                      // Tab opened.
+                    });
+                });
+            });
+        </script>
+    </body>
+</html>

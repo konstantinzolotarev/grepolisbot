@@ -1,0 +1,25 @@
+{
+  "name": "Grepolis Bot Extension",
+  "version": "0.3.0.0",
+  "description": "Grepolis Bot.",
+  "background_page": "background.html",
+  "options_page": "settings.html",
+  "browser_action": {
+    "default_icon": "images/icon.png",
+    "popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*"],
+      "js": ["test.js"]
+    }
+  ],
+  "permissions": [
+//      "experimental",
+      "contextMenus",
+      "cookies",
+      "http://*/*",
+      "tabs",
+      "notifications"
+  ]
+}
